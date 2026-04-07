@@ -1,0 +1,6 @@
+key.pem
+cert.pem
+server.log
+node_modules/
+.env
+nohup.out

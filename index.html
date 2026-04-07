@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4A90E2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>English Teacher AI</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <h1>🎓 English Teacher AI</h1>
+            <p>Improve your English with AI-powered feedback</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="chat">
+                <span class="tab-icon">💬</span>
+                <span class="tab-label">Chat</span>
+            </button>
+            <button class="tab-btn" data-tab="mistakes">
+                <span class="tab-icon">📝</span>
+                <span class="tab-label">Mistakes</span>
+            </button>
+            <button class="tab-btn" data-tab="tips">
+                <span class="tab-icon">💡</span>
+                <span class="tab-label">Tips</span>
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <main class="tab-content">
+            
+            <!-- Chat Tab -->
+            <div class="tab-pane active" id="chat-tab">
+                <!-- Session Header -->
+                <div class="session-header">
+                    <button class="session-menu-btn" id="sessionMenuBtn">
+                        <span>📚</span>
+                        <span id="currentSessionName">Today's Practice</span>
+                    </button>
+                    <button class="new-session-btn" id="newSessionBtn">+ New</button>
+                </div>
+
+                <!-- Session Sidebar -->
+                <div class="session-sidebar" id="sessionSidebar">
+                    <div class="sidebar-header">
+                        <h3>📚 All Sessions</h3>
+                        <button class="close-sidebar" id="closeSidebar">×</button>
+                    </div>
+                    <div class="session-list" id="sessionList">
+                        <!-- Sessions will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message">
+                        <h2>👋 Welcome!</h2>
+                        <p>Tap the microphone button below and speak in English.</p>
+                        <p>I'll help you improve your grammar, vocabulary, and style!</p>
+                    </div>
+                </div>
+
+                <!-- Voice Input -->
+                <div class="voice-input-container">
+                    <button class="mic-button" id="micButton">
+                        <span class="mic-icon">🎤</span>
+                        <span class="mic-text">Tap to Speak</span>
+                    </button>
+                    <div class="recording-indicator" id="recordingIndicator">
+                        <span class="pulse"></span>
+                        <span>Listening...</span>
+                    </div>
+                    <div class="transcript-editor" id="transcriptEditor" style="display:none">
+                        <textarea id="transcriptText" placeholder="Edit your text if needed..."></textarea>
+                        <div class="transcript-actions">
+                            <button class="discard-btn" id="discardBtn">Discard</button>
+                            <button class="submit-btn" id="submitBtn">Send ➤</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mistakes Tab -->
+            <div class="tab-pane" id="mistakes-tab">
+                <div class="mistakes-header">
+                    <h2>📝 Your Mistakes & Improvements</h2>
+                    <div class="mistakes-controls">
+                        <input type="text" id="mistakeSearch" placeholder="Search mistakes..." class="search-input">
+                        <select id="categoryFilter" class="filter-select">
+                            <option value="all">All Categories</option>
+                            <option value="grammar">Grammar</option>
+                            <option value="vocabulary">Vocabulary</option>
+                            <option value="style">Style</option>
+                            <option value="pronunciation">Pronunciation</option>
+                        </select>
+                        <button class="export-btn" id="exportBtn">📥 Export</button>
+                    </div>
+                </div>
+                <div class="mistakes-table-container">
+                    <table class="mistakes-table" id="mistakesTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>What You Said</th>
+                                <th>Improved Version</th>
+                                <th>Explanation</th>
+                                <th>Category</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mistakesTableBody">
+                            <tr class="no-data">
+                                <td colspan="6">No mistakes recorded yet. Start chatting to see your improvements!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tips Tab -->
+            <div class="tab-pane" id="tips-tab">
+                <div class="tips-header">
+                    <h2>💡 Learning Tips & Progress</h2>
+                    <div class="level-selector">
+                        <label>Your Level:</label>
+                        <select id="levelSelect" class="level-select">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate" selected>Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="tips-content">
+                    <!-- Common Mistakes Section -->
+                    <div class="tips-section">
+                        <h3>🎯 Your Common Mistakes</h3>
+                        <div id="commonMistakes" class="tips-cards">
+                            <p class="tips-placeholder">Start practicing to see your common mistakes here!</p>
+                        </div>
+                    </div>
+
+                    <!-- Grammar Tips Section -->
+                    <div class="tips-section">
+                        <h3>📚 Grammar Tips for Your Level</h3>
+                        <div id="grammarTips" class="tips-cards">
+                            <!-- Will be populated based on level -->
+                        </div>
+                    </div>
+
+                    <!-- Vocabulary Suggestions -->
+                    <div class="tips-section">
+                        <h3>📖 Vocabulary to Learn</h3>
+                        <div id="vocabularyTips" class="tips-cards">
+                            <!-- Will be populated based on level -->
+                        </div>
+                    </div>
+
+                    <!-- Progress Stats -->
+                    <div class="tips-section">
+                        <h3>📊 Your Progress</h3>
+                        <div class="progress-stats" id="progressStats">
+                            <div class="stat-card">
+                                <div class="stat-number" id="totalSessions">0</div>
+                                <div class="stat-label">Total Sessions</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="totalMistakes">0</div>
+                                <div class="stat-label">Mistakes Corrected</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="totalMessages">0</div>
+                                <div class="stat-label">Messages Sent</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <h3>⚙️ Settings</h3>
+                <div class="setting-item">
+                    <label>Anthropic API Key:</label>
+                    <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+                    <button id="saveApiKey">Save</button>
+                </div>
+                <button class="close-modal" id="closeSettings">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
