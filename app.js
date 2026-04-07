@@ -136,41 +136,44 @@ function showStatus(msg) {
     console.log('[STATUS]', msg);
 }
 
+let audioContext = null;
+let scriptProcessor = null;
+let pcmChunks = [];
+
 async function toggleRecording() {
     if (isRecording) {
         isRecording = false;
-        mediaRecorder.stop();
+        scriptProcessor.disconnect();
+        audioContext.close();
         micButton.classList.remove('recording');
         micButton.querySelector('.mic-text').textContent = 'Tap to Speak';
         micButton.querySelector('.mic-icon').textContent = '🎤';
         recordingIndicator.classList.remove('active');
         if (synthesis) synthesis.cancel();
+
+        // Build WAV from raw PCM
+        const wavBlob = encodeWAV(pcmChunks, 16000);
+        showStatus(`Recorded: ${pcmChunks.length} PCM chunks, WAV size: ${wavBlob.size} bytes`);
+        await transcribeAudio(wavBlob, 'audio/wav');
     } else {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
             transcriptEditor.style.display = 'none';
             transcriptText.value = '';
+            pcmChunks = [];
 
-            // Pick best supported format — prefer webm/opus for Whisper compatibility
-            const mimePreference = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
-            const selectedMime = mimePreference.find(m => MediaRecorder.isTypeSupported(m)) || '';
-            console.log('Selected MIME type:', selectedMime || 'browser default');
-            mediaRecorder = new MediaRecorder(stream, selectedMime ? { mimeType: selectedMime } : {});
-            mediaRecorder.ondataavailable = e => {
-                console.log('ondataavailable chunk size:', e.data.size);
-                if (e.data.size > 0) audioChunks.push(e.data);
-            };
-            mediaRecorder.onstop = async () => {
-                stream.getTracks().forEach(t => t.stop());
-                const mimeType = mediaRecorder.mimeType || 'audio/webm';
-                const audioBlob = new Blob(audioChunks, { type: mimeType });
-                // Show debug info directly on screen for mobile debugging
-                showStatus(`Recorded: ${audioChunks.length} chunks, ${audioBlob.size} bytes, ${mimeType}`);
-                await transcribeAudio(audioBlob, mimeType);
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioContext.createMediaStreamSource(stream);
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+            scriptProcessor.onaudioprocess = e => {
+                const samples = e.inputBuffer.getChannelData(0);
+                pcmChunks.push(new Float32Array(samples));
             };
 
-            mediaRecorder.start(250); // collect data every 250ms — fixes Android not firing ondataavailable
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(audioContext.destination);
+
             isRecording = true;
             micButton.classList.add('recording');
             micButton.querySelector('.mic-text').textContent = 'Tap to Stop';
@@ -180,6 +183,39 @@ async function toggleRecording() {
             alert('Microphone access denied. Please allow microphone permissions.');
         }
     }
+}
+
+function encodeWAV(chunks, sampleRate) {
+    const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+    const pcm = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) { pcm.set(chunk, offset); offset += chunk.length; }
+
+    const int16 = new Int16Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) {
+        int16[i] = Math.max(-32768, Math.min(32767, pcm[i] * 32768));
+    }
+
+    const buffer = new ArrayBuffer(44 + int16.byteLength);
+    const view = new DataView(buffer);
+    const write = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+
+    write(0, 'RIFF');
+    view.setUint32(4, 36 + int16.byteLength, true);
+    write(8, 'WAVE');
+    write(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);       // PCM
+    view.setUint16(22, 1, true);       // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    write(36, 'data');
+    view.setUint32(40, int16.byteLength, true);
+    new Int16Array(buffer, 44).set(int16);
+
+    return new Blob([buffer], { type: 'audio/wav' });
 }
 
 async function transcribeAudio(audioBlob, mimeType) {
