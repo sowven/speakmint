@@ -146,15 +146,20 @@ async function toggleRecording() {
             transcriptText.value = '';
 
             mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.ondataavailable = e => {
+                console.log('ondataavailable chunk size:', e.data.size);
+                if (e.data.size > 0) audioChunks.push(e.data);
+            };
             mediaRecorder.onstop = async () => {
                 stream.getTracks().forEach(t => t.stop());
+                console.log('Recording stopped. Chunks:', audioChunks.length);
                 const mimeType = mediaRecorder.mimeType || 'audio/webm';
                 const audioBlob = new Blob(audioChunks, { type: mimeType });
+                console.log('Blob size:', audioBlob.size, 'type:', mimeType);
                 await transcribeAudio(audioBlob, mimeType);
             };
 
-            mediaRecorder.start();
+            mediaRecorder.start(250); // collect data every 250ms — fixes Android not firing ondataavailable
             isRecording = true;
             micButton.classList.add('recording');
             micButton.querySelector('.mic-text').textContent = 'Tap to Stop';
@@ -217,6 +222,7 @@ async function transcribeAudio(audioBlob, mimeType) {
     } catch (error) {
         loadingOverlay.classList.remove('active');
         loadingText.textContent = 'Processing...';
+        console.error('Transcription error:', error);
         alert('Transcription error: ' + error.message);
     }
 }
