@@ -193,8 +193,8 @@ async function transcribeAudio(audioBlob, mimeType) {
 
         if (transcript) {
             transcriptText.value = transcript;
-            transcriptEditor.style.display = 'block';
-            transcriptText.focus();
+            transcriptEditor.style.display = 'none'; // hide editor, send directly
+            await handleUserSpeech(transcript);
         }
     } catch (error) {
         alert('Transcription error: ' + error.message);
@@ -255,18 +255,28 @@ function addMessageToChat(type, content) {
         const { original, corrected, explanation, category } = content;
         messageDiv.innerHTML = `
             <div class="message-ai">
-                <div class="message-label">🎓 English Teacher:</div>
+                <div class="message-label">🎓 SpeakMint:</div>
                 ${corrected ? `
                     <div class="correction-box">
                         <div class="correction-label">✓ Improved Version:</div>
                         <div class="correction-text">"${corrected}"</div>
                         <div class="explanation">${explanation}</div>
                     </div>
-                    <button class="listen-btn" onclick="speakText('${corrected.replace(/'/g, "\\'")}')">
-                        🔊 Listen
-                    </button>
+                    <div class="message-actions">
+                        <button class="listen-btn" onclick="speakText('${corrected.replace(/'/g, "\\'")}')">
+                            🔊 Listen
+                        </button>
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">
+                            ✏️ Edit & Retry
+                        </button>
+                    </div>
                 ` : `
                     <div class="message-text">${content.explanation || content.message || 'Great job! Your sentence is perfect.'}</div>
+                    <div class="message-actions">
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">
+                            ✏️ Edit & Retry
+                        </button>
+                    </div>
                 `}
             </div>
         `;
@@ -275,6 +285,34 @@ function addMessageToChat(type, content) {
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
+
+function showRetryEditor(btn, originalText) {
+    // Remove any existing inline editors
+    document.querySelectorAll('.inline-retry-editor').forEach(e => e.remove());
+
+    const editor = document.createElement('div');
+    editor.className = 'inline-retry-editor';
+    editor.innerHTML = `
+        <textarea class="retry-textarea">${originalText}</textarea>
+        <div class="transcript-actions">
+            <button class="discard-btn" onclick="this.closest('.inline-retry-editor').remove()">Cancel</button>
+            <button class="submit-btn" onclick="submitRetry(this)">Send ➤</button>
+        </div>
+    `;
+    btn.closest('.message-actions').after(editor);
+    editor.querySelector('textarea').focus();
+}
+
+function submitRetry(btn) {
+    const text = btn.closest('.inline-retry-editor').querySelector('textarea').value.trim();
+    if (text) {
+        btn.closest('.inline-retry-editor').remove();
+        handleUserSpeech(text);
+    }
+}
+
+window.showRetryEditor = showRetryEditor;
+window.submitRetry = submitRetry;
 
 // ============================================
 // AI INTEGRATION (ANTHROPIC CLAUDE)
