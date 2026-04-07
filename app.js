@@ -80,21 +80,6 @@ function setupEventListeners() {
         if (name) createNewSession(name);
     });
     
-    // Transcript editor
-    submitBtn.addEventListener('click', () => {
-        const text = transcriptText.value.trim();
-        if (text) {
-            transcriptEditor.style.display = 'none';
-            transcriptText.value = '';
-            handleUserSpeech(text);
-        }
-    });
-    discardBtn.addEventListener('click', () => {
-        transcriptEditor.style.display = 'none';
-        transcriptText.value = '';
-        accumulatedTranscript = '';
-    });
-
     // Mistakes tab
     mistakeSearch.addEventListener('input', filterMistakes);
     categoryFilter.addEventListener('change', filterMistakes);
@@ -129,51 +114,32 @@ function switchTab(tabName) {
 // AUDIO RECORDING + WHISPER TRANSCRIPTION
 // ============================================
 
-function showStatus(msg) {
-    const bar = document.getElementById('statusBar');
-    bar.textContent = msg;
-    bar.style.display = 'block';
-    console.log('[STATUS]', msg);
-}
-
-let audioContext = null;
-let scriptProcessor = null;
-let pcmChunks = [];
-
 async function toggleRecording() {
     if (isRecording) {
         isRecording = false;
-        scriptProcessor.disconnect();
-        audioContext.close();
+        mediaRecorder.stop();
         micButton.classList.remove('recording');
         micButton.querySelector('.mic-text').textContent = 'Tap to Speak';
         micButton.querySelector('.mic-icon').textContent = '🎤';
         recordingIndicator.classList.remove('active');
         if (synthesis) synthesis.cancel();
-
-        // Build WAV from raw PCM
-        const wavBlob = encodeWAV(pcmChunks, 16000);
-        showStatus(`Recorded: ${pcmChunks.length} PCM chunks, WAV size: ${wavBlob.size} bytes`);
-        await transcribeAudio(wavBlob, 'audio/wav');
     } else {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];
             transcriptEditor.style.display = 'none';
             transcriptText.value = '';
-            pcmChunks = [];
 
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-            const source = audioContext.createMediaStreamSource(stream);
-            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-
-            scriptProcessor.onaudioprocess = e => {
-                const samples = e.inputBuffer.getChannelData(0);
-                pcmChunks.push(new Float32Array(samples));
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                await transcribeAudio(audioBlob, mimeType);
             };
 
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(audioContext.destination);
-
+            mediaRecorder.start();
             isRecording = true;
             micButton.classList.add('recording');
             micButton.querySelector('.mic-text').textContent = 'Tap to Stop';
@@ -185,64 +151,17 @@ async function toggleRecording() {
     }
 }
 
-function encodeWAV(chunks, sampleRate) {
-    const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
-    const pcm = new Float32Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) { pcm.set(chunk, offset); offset += chunk.length; }
-
-    const int16 = new Int16Array(pcm.length);
-    for (let i = 0; i < pcm.length; i++) {
-        int16[i] = Math.max(-32768, Math.min(32767, pcm[i] * 32768));
-    }
-
-    const buffer = new ArrayBuffer(44 + int16.byteLength);
-    const view = new DataView(buffer);
-    const write = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-
-    write(0, 'RIFF');
-    view.setUint32(4, 36 + int16.byteLength, true);
-    write(8, 'WAVE');
-    write(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);       // PCM
-    view.setUint16(22, 1, true);       // mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    write(36, 'data');
-    view.setUint32(40, int16.byteLength, true);
-    new Int16Array(buffer, 44).set(int16);
-
-    return new Blob([buffer], { type: 'audio/wav' });
-}
-
 async function transcribeAudio(audioBlob, mimeType) {
     const loadingText = loadingOverlay.querySelector('p');
+    loadingText.textContent = 'Transcribing...';
+    loadingOverlay.classList.add('active');
 
     try {
-        let ext = 'webm';
-        if (mimeType.includes('ogg')) ext = 'ogg';
-        else if (mimeType.includes('mp4') || mimeType.includes('m4a')) ext = 'mp4';
-        else if (mimeType.includes('wav')) ext = 'wav';
-        else if (mimeType.includes('mpeg') || mimeType.includes('mp3')) ext = 'mp3';
-
-        console.log('Audio mimeType:', mimeType, '→ ext:', ext, 'size:', audioBlob.size);
-
-        if (audioBlob.size < 1000) {
-            alert('Recording too short — please speak for at least 1 second.');
-            return;
-        }
-
-        loadingText.textContent = 'Transcribing...';
-        loadingOverlay.classList.add('active');
-
+        const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
         const formData = new FormData();
         formData.append('file', audioBlob, `audio.${ext}`);
         formData.append('model', 'whisper-1');
         formData.append('language', 'en');
-        formData.append('temperature', '0');
 
         const response = await fetch('/api/transcribe', {
             method: 'POST',
@@ -256,20 +175,15 @@ async function transcribeAudio(audioBlob, mimeType) {
 
         const data = await response.json();
         const transcript = data.text?.trim();
-        showStatus(`Whisper returned: "${transcript}"`);
-
-        loadingOverlay.classList.remove('active');
 
         if (transcript) {
-            transcriptText.value = transcript;
-            transcriptEditor.style.display = 'block';
-            transcriptText.focus();
+            await handleUserSpeech(transcript);
         }
     } catch (error) {
-        loadingOverlay.classList.remove('active');
-        loadingText.textContent = 'Processing...';
-        console.error('Transcription error:', error);
         alert('Transcription error: ' + error.message);
+    } finally {
+        loadingText.textContent = 'Processing...';
+        loadingOverlay.classList.remove('active');
     }
 }
 
@@ -324,7 +238,7 @@ function addMessageToChat(type, content) {
         const { original, corrected, explanation, category } = content;
         messageDiv.innerHTML = `
             <div class="message-ai">
-                <div class="message-label">🎓 SpeakMint:</div>
+                <div class="message-label">🎓 English Teacher:</div>
                 ${corrected ? `
                     <div class="correction-box">
                         <div class="correction-label">✓ Improved Version:</div>
@@ -332,19 +246,13 @@ function addMessageToChat(type, content) {
                         <div class="explanation">${explanation}</div>
                     </div>
                     <div class="message-actions">
-                        <button class="listen-btn" onclick="speakText('${corrected.replace(/'/g, "\\'")}')">
-                            🔊 Listen
-                        </button>
-                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">
-                            ✏️ Edit & Retry
-                        </button>
+                        <button class="listen-btn" onclick="speakText('${corrected.replace(/'/g, "\\'")}')">🔊 Listen</button>
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">✏️ Edit & Retry</button>
                     </div>
                 ` : `
                     <div class="message-text">${content.explanation || content.message || 'Great job! Your sentence is perfect.'}</div>
                     <div class="message-actions">
-                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">
-                            ✏️ Edit & Retry
-                        </button>
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">✏️ Edit & Retry</button>
                     </div>
                 `}
             </div>
@@ -356,9 +264,7 @@ function addMessageToChat(type, content) {
 }
 
 function showRetryEditor(btn, originalText) {
-    // Remove any existing inline editors
     document.querySelectorAll('.inline-retry-editor').forEach(e => e.remove());
-
     const editor = document.createElement('div');
     editor.className = 'inline-retry-editor';
     editor.innerHTML = `
