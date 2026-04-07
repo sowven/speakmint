@@ -172,7 +172,20 @@ async function transcribeAudio(audioBlob, mimeType) {
     loadingOverlay.classList.add('active');
 
     try {
-        const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+        // Determine correct extension for Whisper (must match actual codec)
+        let ext = 'webm';
+        if (mimeType.includes('ogg')) ext = 'ogg';
+        else if (mimeType.includes('mp4') || mimeType.includes('m4a')) ext = 'mp4';
+        else if (mimeType.includes('wav')) ext = 'wav';
+        else if (mimeType.includes('mpeg') || mimeType.includes('mp3')) ext = 'mp3';
+
+        console.log('Audio mimeType:', mimeType, '→ ext:', ext, 'size:', audioBlob.size);
+
+        if (audioBlob.size < 1000) {
+            alert('Recording too short — please speak for at least 1 second.');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', audioBlob, `audio.${ext}`);
         formData.append('model', 'whisper-1');
