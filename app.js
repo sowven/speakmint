@@ -266,7 +266,7 @@ function addMessageToChat(type, content) {
                         🔊 Listen
                     </button>
                 ` : `
-                    <div class="message-text">${content.message || content}</div>
+                    <div class="message-text">${content.explanation || content.message || 'Great job! Your sentence is perfect.'}</div>
                 `}
             </div>
         `;
