@@ -1,0 +1,12 @@
+{
+  "name": "speakmint",
+  "version": "1.0.0",
+  "description": "SpeakMint - AI-powered English speaking coach",
+  "main": "proxy-server.js",
+  "scripts": {
+    "start": "node proxy-server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

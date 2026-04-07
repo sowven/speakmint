@@ -3,7 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const HTTP_PORT = 3000;
+const HTTP_PORT = process.env.PORT || 3000;
 const HTTPS_PORT = 3443;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
