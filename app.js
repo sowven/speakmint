@@ -168,11 +168,8 @@ async function toggleRecording() {
 
 async function transcribeAudio(audioBlob, mimeType) {
     const loadingText = loadingOverlay.querySelector('p');
-    loadingText.textContent = 'Transcribing...';
-    loadingOverlay.classList.add('active');
 
     try {
-        // Determine correct extension for Whisper (must match actual codec)
         let ext = 'webm';
         if (mimeType.includes('ogg')) ext = 'ogg';
         else if (mimeType.includes('mp4') || mimeType.includes('m4a')) ext = 'mp4';
@@ -185,6 +182,9 @@ async function transcribeAudio(audioBlob, mimeType) {
             alert('Recording too short — please speak for at least 1 second.');
             return;
         }
+
+        loadingText.textContent = 'Transcribing...';
+        loadingOverlay.classList.add('active');
 
         const formData = new FormData();
         formData.append('file', audioBlob, `audio.${ext}`);
@@ -204,16 +204,15 @@ async function transcribeAudio(audioBlob, mimeType) {
         const data = await response.json();
         const transcript = data.text?.trim();
 
+        loadingOverlay.classList.remove('active');
+
         if (transcript) {
-            transcriptText.value = transcript;
-            transcriptEditor.style.display = 'none'; // hide editor, send directly
             await handleUserSpeech(transcript);
         }
     } catch (error) {
-        alert('Transcription error: ' + error.message);
-    } finally {
-        loadingText.textContent = 'Processing...';
         loadingOverlay.classList.remove('active');
+        loadingText.textContent = 'Processing...';
+        alert('Transcription error: ' + error.message);
     }
 }
 
