@@ -1,7 +1,7 @@
 {
-  "name": "English Teacher AI",
-  "short_name": "EnglishAI",
-  "description": "AI-powered English language learning with voice recognition",
+  "name": "FluentlyAI",
+  "short_name": "FluentlyAI",
+  "description": "Speak naturally, sound native. AI-powered English fluency coach.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#4A90E2",
