@@ -190,6 +190,8 @@ async function transcribeAudio(audioBlob, mimeType) {
         formData.append('file', audioBlob, `audio.${ext}`);
         formData.append('model', 'whisper-1');
         formData.append('language', 'en');
+        formData.append('prompt', 'The following is a spoken English sentence by a non-native speaker.');
+        formData.append('temperature', '0');
 
         const response = await fetch('/api/transcribe', {
             method: 'POST',
@@ -207,7 +209,10 @@ async function transcribeAudio(audioBlob, mimeType) {
         loadingOverlay.classList.remove('active');
 
         if (transcript) {
-            await handleUserSpeech(transcript);
+            // Show transcript in editor first so user can verify before sending
+            transcriptText.value = transcript;
+            transcriptEditor.style.display = 'block';
+            transcriptText.focus();
         }
     } catch (error) {
         loadingOverlay.classList.remove('active');
