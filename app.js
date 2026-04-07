@@ -129,6 +129,13 @@ function switchTab(tabName) {
 // AUDIO RECORDING + WHISPER TRANSCRIPTION
 // ============================================
 
+function showStatus(msg) {
+    const bar = document.getElementById('statusBar');
+    bar.textContent = msg;
+    bar.style.display = 'block';
+    console.log('[STATUS]', msg);
+}
+
 async function toggleRecording() {
     if (isRecording) {
         isRecording = false;
@@ -156,10 +163,10 @@ async function toggleRecording() {
             };
             mediaRecorder.onstop = async () => {
                 stream.getTracks().forEach(t => t.stop());
-                console.log('Recording stopped. Chunks:', audioChunks.length);
                 const mimeType = mediaRecorder.mimeType || 'audio/webm';
                 const audioBlob = new Blob(audioChunks, { type: mimeType });
-                console.log('Blob size:', audioBlob.size, 'type:', mimeType);
+                // Show debug info directly on screen for mobile debugging
+                showStatus(`Recorded: ${audioChunks.length} chunks, ${audioBlob.size} bytes, ${mimeType}`);
                 await transcribeAudio(audioBlob, mimeType);
             };
 
@@ -213,11 +220,11 @@ async function transcribeAudio(audioBlob, mimeType) {
 
         const data = await response.json();
         const transcript = data.text?.trim();
+        showStatus(`Whisper returned: "${transcript}"`);
 
         loadingOverlay.classList.remove('active');
 
         if (transcript) {
-            // Show transcript in editor first so user can verify before sending
             transcriptText.value = transcript;
             transcriptEditor.style.display = 'block';
             transcriptText.focus();
