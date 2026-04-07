@@ -1,7 +1,7 @@
 {
-  "name": "FluentlyAI",
-  "short_name": "FluentlyAI",
-  "description": "Speak naturally, sound native. AI-powered English fluency coach.",
+  "name": "SpeakMint",
+  "short_name": "SpeakMint",
+  "description": "Fresh English. Every conversation. AI-powered speaking coach.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#4A90E2",
