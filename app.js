@@ -145,7 +145,11 @@ async function toggleRecording() {
             transcriptEditor.style.display = 'none';
             transcriptText.value = '';
 
-            mediaRecorder = new MediaRecorder(stream);
+            // Pick best supported format — prefer webm/opus for Whisper compatibility
+            const mimePreference = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+            const selectedMime = mimePreference.find(m => MediaRecorder.isTypeSupported(m)) || '';
+            console.log('Selected MIME type:', selectedMime || 'browser default');
+            mediaRecorder = new MediaRecorder(stream, selectedMime ? { mimeType: selectedMime } : {});
             mediaRecorder.ondataavailable = e => {
                 console.log('ondataavailable chunk size:', e.data.size);
                 if (e.data.size > 0) audioChunks.push(e.data);
@@ -195,7 +199,6 @@ async function transcribeAudio(audioBlob, mimeType) {
         formData.append('file', audioBlob, `audio.${ext}`);
         formData.append('model', 'whisper-1');
         formData.append('language', 'en');
-        formData.append('prompt', 'The following is a spoken English sentence by a non-native speaker.');
         formData.append('temperature', '0');
 
         const response = await fetch('/api/transcribe', {
