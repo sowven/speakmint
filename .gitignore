@@ -4,3 +4,4 @@ server.log
 node_modules/
 .env
 nohup.out
+.claude/settings.local.json

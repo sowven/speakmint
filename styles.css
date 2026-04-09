@@ -285,6 +285,22 @@ header p {
     font-weight: 600;
     margin-bottom: 8px;
     opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.message-timestamp {
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.6;
+}
+
+.tip-timestamp {
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.55;
+    margin-left: 8px;
 }
 
 .message-text {
@@ -818,4 +834,175 @@ header p {
     font-family: inherit;
     resize: vertical;
     outline: none;
+}
+
+.phrase-fix-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid #eee;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.phrase-wrong {
+    color: #e53935;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.phrase-arrow {
+    color: #999;
+    margin: 4px 0;
+    font-size: 1.1rem;
+}
+
+.phrase-right {
+    color: #2e7d32;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.phrase-why {
+    color: #666;
+    font-size: 0.82rem;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+/* Tip thread cards */
+.tip-card-thread {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+    border: 1px solid #e0e8ff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.thread-comments {
+    margin-top: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.thread-comment {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.thread-comment-user {
+    flex-direction: row-reverse;
+}
+
+.thread-avatar {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: #e0e8ff;
+    color: #4A90E2;
+    border-radius: 20px;
+    padding: 3px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.thread-comment-user .thread-avatar {
+    background: #4A90E2;
+    color: white;
+}
+
+.thread-bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    max-width: 85%;
+}
+
+.thread-bubble-ai {
+    background: #f5f7ff;
+    color: #333;
+    border-radius: 12px 12px 12px 2px;
+}
+
+.thread-bubble-user {
+    background: #4A90E2;
+    color: white;
+    border-radius: 12px 12px 2px 12px;
+}
+
+.thread-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.thread-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #dde3ff;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    outline: none;
+    font-family: inherit;
+}
+
+.thread-send-btn {
+    padding: 8px 14px;
+    background: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* Collapsible sections */
+.collapsible-section {
+    border: 1px solid #e0e8ff;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: #f5f7ff;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #333;
+    user-select: none;
+}
+
+.section-header:active {
+    background: #e8edff;
+}
+
+.section-chevron {
+    color: #4A90E2;
+    font-size: 0.8rem;
+}
+
+.section-body {
+    padding: 12px;
+}
+
+.show-more-btn {
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: 1px dashed #4A90E2;
+    border-radius: 8px;
+    color: #4A90E2;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 8px;
 }

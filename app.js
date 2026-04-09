@@ -39,7 +39,7 @@ const mistakesTableBody = document.getElementById('mistakesTableBody');
 const mistakeSearch = document.getElementById('mistakeSearch');
 const categoryFilter = document.getElementById('categoryFilter');
 const exportBtn = document.getElementById('exportBtn');
-const levelSelect = document.getElementById('levelSelect');
+const levelSelect = document.getElementById('levelSelect'); // may be null after redesign
 
 // ============================================
 // INITIALIZATION
@@ -86,7 +86,7 @@ function setupEventListeners() {
     exportBtn.addEventListener('click', exportMistakes);
     
     // Tips tab
-    levelSelect.addEventListener('change', updateTips);
+    if (levelSelect) levelSelect.addEventListener('change', updateTips);
 }
 
 // ============================================
@@ -219,40 +219,54 @@ async function handleUserSpeech(text) {
     }
 }
 
-function addMessageToChat(type, content) {
+function formatTimestamp(date) {
+    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function addMessageToChat(type, content, timestamp) {
     // Remove welcome message if exists
     const welcome = chatMessages.querySelector('.welcome-message');
     if (welcome) welcome.remove();
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message';
-    
+    const ts = formatTimestamp(timestamp ? new Date(timestamp) : new Date());
+
     if (type === 'user') {
         messageDiv.innerHTML = `
             <div class="message-user">
-                <div class="message-label">You said:</div>
+                <div class="message-label">You said: <span class="message-timestamp">${ts}</span></div>
                 <div class="message-text">${content}</div>
             </div>
         `;
     } else {
-        const { original, corrected, explanation, category } = content;
+        const { original, formal, natural, explanation, category } = content;
+        const hasCorrections = formal || natural;
+        const escapedOriginal = (original || '').replace(/'/g, "\\'");
         messageDiv.innerHTML = `
             <div class="message-ai">
-                <div class="message-label">🎓 English Teacher:</div>
-                ${corrected ? `
+                <div class="message-label">🎓 SpeakMint: <span class="message-timestamp">${ts}</span></div>
+                ${hasCorrections ? `
+                    ${formal ? `
                     <div class="correction-box">
-                        <div class="correction-label">✓ Improved Version:</div>
-                        <div class="correction-text">"${corrected}"</div>
-                        <div class="explanation">${explanation}</div>
-                    </div>
+                        <div class="correction-label">🎩 Formal / Professional:</div>
+                        <div class="correction-text">"${formal}"</div>
+                        <button class="listen-btn small" onclick="speakText('${formal.replace(/'/g, "\\'")}')">🔊 Listen</button>
+                    </div>` : ''}
+                    ${natural ? `
+                    <div class="correction-box" style="margin-top:10px">
+                        <div class="correction-label">💬 Natural / Conversational:</div>
+                        <div class="correction-text">"${natural}"</div>
+                        <button class="listen-btn small" onclick="speakText('${natural.replace(/'/g, "\\'")}')">🔊 Listen</button>
+                    </div>` : ''}
+                    <div class="explanation" style="margin-top:8px">${explanation}</div>
                     <div class="message-actions">
-                        <button class="listen-btn" onclick="speakText('${corrected.replace(/'/g, "\\'")}')">🔊 Listen</button>
-                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">✏️ Edit & Retry</button>
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${escapedOriginal}')">✏️ Edit & Retry</button>
                     </div>
                 ` : `
-                    <div class="message-text">${content.explanation || content.message || 'Great job! Your sentence is perfect.'}</div>
+                    <div class="message-text">${content.explanation || content.message || '✅ Great job! That sounds natural.'}</div>
                     <div class="message-actions">
-                        <button class="retry-btn" onclick="showRetryEditor(this, '${(original || '').replace(/'/g, "\\'")}')">✏️ Edit & Retry</button>
+                        <button class="retry-btn" onclick="showRetryEditor(this, '${escapedOriginal}')">✏️ Edit & Retry</button>
                     </div>
                 `}
             </div>
@@ -309,11 +323,16 @@ DO NOT correct or mention:
 
 If the sentence is correct and natural for spoken English, say so positively even if it wouldn't be perfect in writing.
 
+If there are improvements to make, provide TWO versions:
+1. "formal" - polished, professional, confident leader tone
+2. "natural" - conversational but improved, still sounds like them
+
 Respond in JSON format:
 {
     "original": "${text}",
-    "corrected": "improved spoken version, or null if already natural",
-    "explanation": "brief, specific explanation of what to change and why — focus on how a native speaker would say it",
+    "formal": "formal/polished version, or null if already perfect",
+    "natural": "natural but improved version, or null if already perfect",
+    "explanation": "brief explanation of the key improvements",
     "category": "vocabulary/grammar/phrasing or null",
     "isPerfect": true/false
 }`;
@@ -350,8 +369,8 @@ Respond in JSON format:
                 const result = JSON.parse(jsonMatch[0]);
                 
                 // Save mistake if not perfect
-                if (!result.isPerfect && result.corrected) {
-                    saveMistake(result);
+                if (!result.isPerfect && (result.formal || result.natural)) {
+                    saveMistake({ ...result, corrected: result.formal || result.natural });
                 }
                 
                 return result;
@@ -487,8 +506,8 @@ function loadSessionMessages(session) {
     clearChat();
     
     session.messages.forEach(msg => {
-        addMessageToChat('user', msg.user);
-        addMessageToChat('ai', msg.ai);
+        addMessageToChat('user', msg.user, msg.timestamp);
+        addMessageToChat('ai', msg.ai, msg.timestamp);
     });
 }
 
@@ -612,95 +631,217 @@ window.deleteMistake = deleteMistake;
 // ============================================
 
 function updateTips() {
-    const level = levelSelect.value;
-    updateCommonMistakes();
-    updateGrammarTips(level);
-    updateVocabularyTips(level);
+    renderPhraseFixes();
+    renderProgressStats();
+    loadAICoachingTips();
 }
 
-function updateCommonMistakes() {
-    const commonMistakesDiv = document.getElementById('commonMistakes');
-    
+function renderPhraseFixes(showAll = false) {
+    const div = document.getElementById('phraseFixes');
     if (mistakes.length === 0) {
-        commonMistakesDiv.innerHTML = '<p class="tips-placeholder">Start practicing to see your common mistakes here!</p>';
+        div.innerHTML = '<p class="tips-placeholder">Start speaking — your phrase corrections will appear here.</p>';
         return;
     }
-    
-    // Count mistakes by category
-    const categoryCounts = {};
-    mistakes.forEach(m => {
-        categoryCounts[m.category] = (categoryCounts[m.category] || 0) + 1;
-    });
-    
-    const sorted = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    
-    commonMistakesDiv.innerHTML = sorted.map(([category, count]) => `
-        <div class="tip-card">
-            <div class="tip-title">${category.charAt(0).toUpperCase() + category.slice(1)}</div>
-            <div class="tip-content">You've made ${count} ${category} mistakes. Focus on improving this area!</div>
+    const list = [...mistakes].reverse();
+    const visible = showAll ? list : list.slice(0, 3);
+    const cards = visible.map(m => `
+        <div class="phrase-fix-card">
+            <div class="phrase-wrong">❌ "${m.original}"</div>
+            <div class="phrase-arrow">↓</div>
+            <div class="phrase-right">✅ "${m.corrected}"</div>
+            <div class="phrase-why">${m.explanation}</div>
         </div>
     `).join('');
+    const toggle = list.length > 3 ? `
+        <button class="show-more-btn" onclick="renderPhraseFixes(${!showAll})">
+            ${showAll ? '▲ Show less' : `▼ Show ${list.length - 3} more`}
+        </button>` : '';
+    div.innerHTML = cards + toggle;
 }
+window.renderPhraseFixes = renderPhraseFixes;
 
-function updateGrammarTips(level) {
-    const tips = {
-        beginner: [
-            { title: 'Subject-Verb Agreement', content: 'Remember: "He goes" not "He go". The verb changes with the subject.' },
-            { title: 'Articles (a, an, the)', content: 'Use "a" before consonants, "an" before vowels, "the" for specific things.' },
-            { title: 'Present Simple vs Continuous', content: '"I work" (habit) vs "I am working" (now).' }
-        ],
-        intermediate: [
-            { title: 'Past Perfect Tense', content: 'Use "had + past participle" for actions before another past action.' },
-            { title: 'Conditional Sentences', content: 'If + past simple, would + verb (If I had time, I would help).' },
-            { title: 'Phrasal Verbs', content: 'Learn common phrasal verbs like "give up", "look after", "put off".' }
-        ],
-        advanced: [
-            { title: 'Subjunctive Mood', content: 'Use for hypothetical situations: "If I were you..." (not "was").' },
-            { title: 'Inversion for Emphasis', content: '"Never have I seen..." instead of "I have never seen..."' },
-            { title: 'Cleft Sentences', content: 'Use "It is... that..." or "What... is..." for emphasis.' }
-        ]
-    };
-    
-    const grammarTipsDiv = document.getElementById('grammarTips');
-    grammarTipsDiv.innerHTML = tips[level].map(tip => `
-        <div class="tip-card">
-            <div class="tip-title">${tip.title}</div>
-            <div class="tip-content">${tip.content}</div>
-        </div>
-    `).join('');
+function toggleSection(header) {
+    const body = header.nextElementSibling;
+    const chevron = header.querySelector('.section-chevron');
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    chevron.textContent = isOpen ? '▶' : '▼';
 }
+window.toggleSection = toggleSection;
 
-function updateVocabularyTips(level) {
-    const tips = {
-        beginner: [
-            { title: 'Daily Routines', content: 'Learn: wake up, get dressed, have breakfast, go to work, etc.' },
-            { title: 'Common Adjectives', content: 'big, small, good, bad, happy, sad, hot, cold, new, old' }
-        ],
-        intermediate: [
-            { title: 'Business English', content: 'meeting, deadline, presentation, colleague, client, schedule' },
-            { title: 'Expressing Opinions', content: 'In my opinion, I believe, It seems to me, From my perspective' }
-        ],
-        advanced: [
-            { title: 'Idiomatic Expressions', content: 'piece of cake, break the ice, hit the nail on the head' },
-            { title: 'Academic Vocabulary', content: 'furthermore, nevertheless, consequently, thereby, wherein' }
-        ]
-    };
-    
-    const vocabTipsDiv = document.getElementById('vocabularyTips');
-    vocabTipsDiv.innerHTML = tips[level].map(tip => `
-        <div class="tip-card">
-            <div class="tip-title">${tip.title}</div>
-            <div class="tip-content">${tip.content}</div>
-        </div>
-    `).join('');
-}
-
-function updateProgressStats() {
+function renderProgressStats() {
     document.getElementById('totalSessions').textContent = sessions.length;
     document.getElementById('totalMistakes').textContent = mistakes.length;
-    
     const totalMessages = sessions.reduce((sum, s) => sum + s.messages.length, 0);
     document.getElementById('totalMessages').textContent = totalMessages;
+}
+
+function renderCachedTips(div, tips) {
+    div.innerHTML = tips.map((t, i) => {
+        const dateStr = t.generatedAt ? formatTimestamp(new Date(t.generatedAt)) : '';
+        return `
+        <div class="tip-card-thread" id="tip-${i}">
+            <div class="tip-title">${t.title}${dateStr ? `<span class="tip-timestamp">${dateStr}</span>` : ''}</div>
+            <div class="tip-content">${t.tip}</div>
+            <div class="thread-comments" id="thread-comments-${i}"></div>
+            <div class="thread-input-row">
+                <input type="text" class="thread-input" placeholder="Ask a question about this tip..." onkeydown="if(event.key==='Enter') postThreadComment(${i}, '${escapeForAttr(t.title)}', '${escapeForAttr(t.tip)}')">
+                <button class="thread-send-btn" onclick="postThreadComment(${i}, '${escapeForAttr(t.title)}', '${escapeForAttr(t.tip)}')">➤</button>
+            </div>
+        </div>
+    `;}).join('');
+}
+
+async function loadAICoachingTips() {
+    const div = document.getElementById('aiCoachingTips');
+    if (mistakes.length === 0) {
+        div.innerHTML = '<p class="tips-placeholder">Speak more to get personalized coaching tips.</p>';
+        return;
+    }
+
+    // Load cache — only process mistakes that are new since last generation
+    const cached = JSON.parse(localStorage.getItem('coachingTipsCache') || 'null');
+    const existingTips = cached ? cached.tips : [];
+    const processedCount = cached ? cached.mistakeCount : 0;
+
+    if (processedCount === mistakes.length) {
+        renderCachedTips(div, existingTips);
+        return;
+    }
+
+    // Always show cached tips immediately, then add a loading card at the top for new ones
+    renderCachedTips(div, existingTips);
+    div.insertAdjacentHTML('afterbegin', '<div class="tip-card-thread" id="tipsLoadingMsg"><div class="tip-title">✨ Generating new tip...</div><div class="tip-content">Analyzing your latest mistakes...</div></div>');
+
+    const newMistakes = mistakes.slice(processedCount);
+    const mistakeSummary = newMistakes.map(m =>
+        `Original: "${m.original}" → Better: "${m.corrected}" (${m.category})`
+    ).join('\n');
+
+    const prompt = `You are a professional English speaking coach. Based on these NEW mistakes a non-native speaker just made, give 1-3 short specific coaching tips. Each tip should be actionable and reference these actual mistakes. Do not repeat generic advice.
+
+New mistakes:
+${mistakeSummary}
+
+Respond in JSON format:
+{
+  "tips": [
+    { "title": "short title", "tip": "specific actionable advice" }
+  ]
+}`;
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: getModel(),
+                max_tokens: 1024,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+        const data = await response.json();
+        console.log('Coaching tips full API response:', JSON.stringify(data));
+        if (!data.content || !data.content[0]) {
+            throw new Error(data.error?.message || data.type || 'No content in response');
+        }
+        const text = data.content[0].text;
+        console.log('Coaching tips raw response:', text);
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('No JSON found in response');
+        const json = JSON.parse(match[0]);
+        const generatedAt = new Date().toISOString();
+        const newTips = json.tips.map(t => ({ ...t, generatedAt }));
+        const allTips = [...newTips, ...existingTips];
+        localStorage.setItem('coachingTipsCache', JSON.stringify({
+            mistakeCount: mistakes.length,
+            tips: allTips
+        }));
+        renderCachedTips(div, allTips);
+    } catch (e) {
+        console.error('loadAICoachingTips error:', e);
+        document.getElementById('tipsLoadingMsg')?.remove();
+        if (existingTips.length === 0) {
+            div.innerHTML = `<p class="tips-placeholder">Could not load coaching tips: ${e.message}</p>`;
+        }
+    }
+}
+
+// Store thread histories: { tipIndex: [{role, content}] }
+const threadHistories = {};
+
+function escapeForAttr(str) {
+    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+}
+
+async function postThreadComment(tipIndex, tipTitle, tipContent) {
+    const input = document.querySelector(`#tip-${tipIndex} .thread-input`);
+    const userMsg = input.value.trim();
+    if (!userMsg) return;
+    input.value = '';
+
+    const commentsDiv = document.getElementById(`thread-comments-${tipIndex}`);
+
+    // Add user comment
+    commentsDiv.innerHTML += `
+        <div class="thread-comment thread-comment-user">
+            <span class="thread-avatar">You</span>
+            <div class="thread-bubble thread-bubble-user">${userMsg}</div>
+        </div>`;
+    commentsDiv.scrollTop = commentsDiv.scrollHeight;
+
+    // Add loading bubble
+    const loadingId = `loading-${tipIndex}-${Date.now()}`;
+    commentsDiv.innerHTML += `
+        <div class="thread-comment thread-comment-ai" id="${loadingId}">
+            <span class="thread-avatar">AI</span>
+            <div class="thread-bubble thread-bubble-ai">...</div>
+        </div>`;
+    commentsDiv.scrollTop = commentsDiv.scrollHeight;
+
+    // Build thread history
+    if (!threadHistories[tipIndex]) {
+        threadHistories[tipIndex] = [{
+            role: 'user',
+            content: `You are a friendly English speaking coach. The user is discussing this coaching tip:
+
+Title: "${tipTitle}"
+Tip: "${tipContent}"
+
+Answer their questions specifically about this tip. Be concise and practical.`
+        }, {
+            role: 'assistant',
+            content: `Got it! I'm here to help you understand and apply this tip. What would you like to know?`
+        }];
+    }
+
+    threadHistories[tipIndex].push({ role: 'user', content: userMsg });
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: getModel(),
+                max_tokens: 512,
+                messages: threadHistories[tipIndex]
+            })
+        });
+        const data = await response.json();
+        const aiReply = data.content[0].text.trim();
+        threadHistories[tipIndex].push({ role: 'assistant', content: aiReply });
+
+        document.getElementById(loadingId).querySelector('.thread-bubble').textContent = aiReply;
+    } catch (e) {
+        document.getElementById(loadingId).querySelector('.thread-bubble').textContent = 'Error — please try again.';
+    }
+    commentsDiv.scrollTop = commentsDiv.scrollHeight;
+}
+
+window.postThreadComment = postThreadComment;
+
+function updateProgressStats() {
+    renderProgressStats();
 }
 
 // ============================================

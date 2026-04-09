@@ -129,45 +129,44 @@
             <!-- Tips Tab -->
             <div class="tab-pane" id="tips-tab">
                 <div class="tips-header">
-                    <h2>💡 Learning Tips & Progress</h2>
-                    <div class="level-selector">
-                        <label>Your Level:</label>
-                        <select id="levelSelect" class="level-select">
-                            <option value="beginner">Beginner</option>
-                            <option value="intermediate" selected>Intermediate</option>
-                            <option value="advanced">Advanced</option>
-                        </select>
-                    </div>
+                    <h2>💡 Your Coaching Dashboard</h2>
                 </div>
 
                 <div class="tips-content">
-                    <!-- Common Mistakes Section -->
-                    <div class="tips-section">
-                        <h3>🎯 Your Common Mistakes</h3>
-                        <div id="commonMistakes" class="tips-cards">
-                            <p class="tips-placeholder">Start practicing to see your common mistakes here!</p>
+                    <!-- Phrase Fixes -->
+                    <div class="collapsible-section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <span>🔄 Phrases to Replace</span>
+                            <span class="section-chevron">▼</span>
+                        </div>
+                        <div class="section-body">
+                            <div id="phraseFixes">
+                                <p class="tips-placeholder">Start speaking — your phrase corrections will appear here.</p>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Grammar Tips Section -->
-                    <div class="tips-section">
-                        <h3>📚 Grammar Tips for Your Level</h3>
-                        <div id="grammarTips" class="tips-cards">
-                            <!-- Will be populated based on level -->
+                    <!-- AI Coaching Tips -->
+                    <div class="collapsible-section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <span>🎯 Personalized Coaching Tips</span>
+                            <span class="section-chevron">▼</span>
                         </div>
-                    </div>
-
-                    <!-- Vocabulary Suggestions -->
-                    <div class="tips-section">
-                        <h3>📖 Vocabulary to Learn</h3>
-                        <div id="vocabularyTips" class="tips-cards">
-                            <!-- Will be populated based on level -->
+                        <div class="section-body">
+                            <div id="aiCoachingTips">
+                                <p class="tips-placeholder">Speak more to get personalized coaching tips.</p>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Progress Stats -->
-                    <div class="tips-section">
-                        <h3>📊 Your Progress</h3>
+                    <div class="collapsible-section">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <span>📊 Your Progress</span>
+                            <span class="section-chevron">▼</span>
+                        </div>
+                        <div class="section-body">
+                        <h3 style="display:none">📊 Your Progress</h3>
                         <div class="progress-stats" id="progressStats">
                             <div class="stat-card">
                                 <div class="stat-number" id="totalSessions">0</div>
@@ -181,6 +180,7 @@
                                 <div class="stat-number" id="totalMessages">0</div>
                                 <div class="stat-label">Messages Sent</div>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>
